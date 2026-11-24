@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>24h Routine</title>
+  <meta name="description" content="曜日固定の24時間円グラフスケジュール管理Webアプリ" />
+  <meta name="theme-color" content="#0b1020" />
+
+  <!-- PWA / アプリ風全画面表示用 -->
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="24h Routine" />
+
+  <style>
+    :root {
+      --bg-base: #0b1020;
+      --bg-surface: #12192d;
+      --bg-elevated: #1a233d;
+      --border-subtle: rgba(148, 163, 184, 0.14);
+      --border-strong: rgba(148, 163, 184, 0.28);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent: #38bdf8;
+      --danger: #fb7185;
+      --now-color: #f43f5e;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle at 50% -10%, #17213e 0%, var(--bg-base) 58%);
+      background-attachment: fixed;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      min-height: 100dvh;
+      overflow-x: hidden;
+      overscroll-behavior-y: contain;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    input, textarea {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    .app {
+      max-width: 540px;
+      margin: 0 auto;
+      padding: max(14px, env(safe-area-inset-top)) 14px max(96px, calc(80px + env(safe-area-inset-bottom)));
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 2px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #38bdf8, #a78bfa);
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.7);
+    }
+
+    .brand-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-sub {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      display: block;
+      margin-top: 1px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      border-radius: 12px;
+      padding: 8px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: transform 0.12s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .icon-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Day Tabs */
+    .day-tabs {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+      background: var(--bg-surface);
+      padding: 5px;
+      border-radius: 16px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .day-tab {
+      position: relative;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      padding: 9px 2px;
+      border-radius: 11px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .day-tab.active {
+      background: linear-gradient(145deg, #253358, #1c2745);
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+
+    .day-tab .today-pip {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      opacity: 0;
+    }
+
+    .day-tab.is-today .today-pip {
+      opacity: 1;
+    }
+
+    /* Clock Chart Card */
+    .chart-card {
+      background: radial-gradient(circle at 50% 45%, rgba(30, 41, 75, 0.7) 0%, var(--bg-surface) 75%);
+      border: 1px solid var(--border-subtle);
+      border-radius: 26px;
+      padding: 12px 10px 14px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .chart-meta {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2px 10px 4px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.32);
+      color: #fda4af;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--now-color);
+      box-shadow: 0 0 8px var(--now-color);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.8); }
+    }
+
+    .clock-wrapper {
+      width: 100%;
+      max-width: 400px;
+      aspect-ratio: 1 / 1;
+      position: relative;
+    }
+
+    svg#clockSvg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .sector-group {
+      cursor: pointer;
+      transition: opacity 0.18s ease, filter 0.18s ease;
+    }
+
+    .sector-group:active {
+      filter: brightness(1.15);
+    }
+
+    .sector-label-title {
+      font-weight: 700;
+      fill: #0b1020;
+      pointer-events: none;
+      letter-spacing: -0.01em;
+    }
+
+    .sector-label-dur {
+      font-weight: 600;
+      fill: rgba(11, 16, 32, 0.78);
+      font-variant-numeric: tabular-nums;
+      pointer-events: none;
+    }
+
+    .hour-label {
+      fill: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+
+    .hour-label.major {
+      fill: var(--text-primary);
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+
+    .center-day {
+      fill: var(--text-primary);
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-anchor: middle;
+    }
+
+    .center-time {
+      fill: var(--accent);
+      font-size: 12.5px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      text-anchor: middle;
+    }
+
+    .center-sub {
+      fill: var(--text-secondary);
+      font-size: 10px;
+      text-anchor: middle;
+    }
+
+    /* Schedule List */
+    .list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 4px 0;
+    }
+
+    .list-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .schedule-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .schedule-item {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 15px;
+      padding: 11px 13px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: transform 0.12s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .schedule-item:active {
+      transform: scale(0.98);
+      background: var(--bg-elevated);
+    }
+
+    .schedule-item.is-now {
+      border-color: rgba(244, 63, 94, 0.55);
+      box-shadow: 0 0 0 1px rgba(244, 63, 94, 0.2), 0 8px 20px rgba(244, 63, 94, 0.12);
+    }
+
+    .item-color-bar {
+      width: 6px;
+      height: 36px;
+      border-radius: 99px;
+      flex-shrink: 0;
+    }
+
+    .item-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .item-title-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .item-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .now-tag {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: #ffe4e6;
+      background: var(--now-color);
+      padding: 1px 6px;
+      border-radius: 999px;
+      letter-spacing: 0.04em;
+    }
+
+    .item-time {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .item-dur {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.06);
+      padding: 5px 9px;
+      border-radius: 9px;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 28px 16px;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      border: 1px dashed var(--border-strong);
+      border-radius: 16px;
+      font-size: 0.86rem;
+    }
+
+    /* Floating Add Button */
+    .fab {
+      position: fixed;
+      bottom: max(20px, calc(12px + env(safe-area-inset-bottom)));
+      right: max(18px, calc(50% - 252px));
+      height: 54px;
+      padding: 0 20px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      color: #081020;
+      font-size: 0.92rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 12px 30px rgba(56, 189, 248, 0.42);
+      cursor: pointer;
+      z-index: 30;
+      transition: transform 0.15s ease;
+    }
+
+    .fab:active {
+      transform: scale(0.94);
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 8, 18, 0.74);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 50;
+      padding: 12px 12px max(12px, env(safe-area-inset-bottom));
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+      animation: fadeIn 0.18s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 480px;
+      background: #131b31;
+      border: 1px solid var(--border-strong);
+      border-radius: 24px;
+      padding: 18px 18px 20px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+      max-height: 88dvh;
+      overflow-y: auto;
+      animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @media (min-width: 560px) {
+      .modal-backdrop {
+        align-items: center;
+      }
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .modal-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+    }
+
+    .close-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .text-input, .time-input {
+      width: 100%;
+      background: var(--bg-base);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      border-radius: 12px;
+      padding: 11px 13px;
+      font-size: 1rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .text-input:focus, .time-input:focus {
+      border-color: var(--accent);
+    }
+
+    .time-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .time-box {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .step-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .step-btn {
+      flex: 1;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      border-radius: 8px;
+      padding: 6px 0;
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .step-btn:active {
+      background: #273459;
+      color: var(--text-primary);
+    }
+
+    .chips-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .history-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .history-chip:active {
+      transform: scale(0.95);
+    }
+
+    .chip-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+    }
+
+    .palette {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+
+    .color-swatch {
+      height: 34px;
+      border-radius: 10px;
+      border: 2px solid transparent;
+      cursor: pointer;
+    }
+
+    .color-swatch.selected {
+      border-color: #ffffff;
+      transform: scale(1.07);
+      box-shadow: 0 0 14px rgba(255, 255, 255, 0.35);
+    }
+
+    .duration-preview {
+      font-size: 0.8rem;
+      color: var(--accent);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .btn-primary {
+      flex: 1;
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      color: #081020;
+      border: none;
+      border-radius: 13px;
+      padding: 13px;
+      font-size: 0.94rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .btn-danger {
+      background: rgba(251, 113, 133, 0.15);
+      color: #fda4af;
+      border: 1px solid rgba(251, 113, 133, 0.35);
+      border-radius: 13px;
+      padding: 13px 16px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .copy-days-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin: 12px 0 16px;
+    }
+
+    .copy-day-btn {
+      padding: 11px 6px;
+      border-radius: 12px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-base);
+      color: var(--text-secondary);
+      font-weight: 700;
+      font-size: 0.84rem;
+      cursor: pointer;
+    }
+
+    .copy-day-btn.selected {
+      background: rgba(56, 189, 248, 0.18);
+      border-color: var(--accent);
+      color: #e0f2fe;
+    }
+
+    .copy-day-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .toast {
+      position: fixed;
+      top: max(16px, calc(8px + env(safe-area-inset-top)));
+      left: 50%;
+      transform: translateX(-50%) translateY(-16px);
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid var(--border-strong);
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s ease;
+      z-index: 80;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-dot"></div>
+        <div>
+          <div class="brand-title">24h Routine</div>
+          <span class="brand-sub" id="summaryText">Loading...</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="openCopyBtn" title="他の曜日にコピー">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          コピー
+        </button>
+      </div>
+    </header>
+
+    <nav class="day-tabs" id="dayTabs" aria-label="曜日切り替え"></nav>
+
+    <section class="chart-card">
+      <div class="chart-meta">
+        <span id="chartDayInfo">24時間スケジュール</span>
+        <span class="live-badge">
+          <span class="live-dot"></span>
+          <span id="liveClockBadge">--:--:--</span>
+        </span>
+      </div>
+      <div class="clock-wrapper">
+        <svg id="clockSvg" viewBox="0 0 420 420" role="img" aria-label="24時間スケジュール円グラフ"></svg>
+      </div>
+    </section>
+
+    <div class="list-header">
+      <span class="list-title" id="listTitle">Schedule</span>
+      <span style="font-size:0.75rem;color:var(--text-muted)">タップで編集</span>
+    </div>
+
+    <section class="schedule-list" id="scheduleList"></section>
+  </div>
+
+  <button class="fab" id="addBtn">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    予定を追加
+  </button>
+
+  <!-- Add / Edit Modal -->
+  <div class="modal-backdrop" id="editModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+      <div class="modal-header">
+        <div class="modal-title" id="editModalTitle">予定を追加</div>
+        <button class="close-btn" id="closeEditModal" aria-label="閉じる">&times;</button>
+      </div>
+
+      <div class="form-group" id="historySection">
+        <div class="form-label">
+          <span>よく使う予定（ワンタップ呼び出し）</span>
+        </div>
+        <div class="chips-wrap" id="historyChips"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="eventTitleInput">予定名</label>
+        <input type="text" id="eventTitleInput" class="text-input" placeholder="例：Study, Gym, Sleep..." maxlength="30" />
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">
+          <span>時間帯（日跨ぎ対応）</span>
+          <span class="duration-preview" id="durationPreview">所要時間 1:00</span>
+        </div>
+        <div class="time-grid">
+          <div class="time-box">
+            <input type="time" id="startTimeInput" class="time-input" step="900" />
+            <div class="step-row">
+              <button type="button" class="step-btn" data-target="start" data-delta="-15">-15m</button>
+              <button type="button" class="step-btn" data-target="start" data-delta="15">+15m</button>
+            </div>
+          </div>
+          <div class="time-box">
+            <input type="time" id="endTimeInput" class="time-input" step="900" />
+            <div class="step-row">
+              <button type="button" class="step-btn" data-target="end" data-delta="-15">-15m</button>
+              <button type="button" class="step-btn" data-target="end" data-delta="15">+15m</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label"><span>カラー</span></div>
+        <div class="palette" id="colorPalette"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-danger" id="deleteEventBtn" style="display:none;">削除</button>
+        <button type="button" class="btn-primary" id="saveEventBtn">保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Copy Modal -->
+  <div class="modal-backdrop" id="copyModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="copyModalTitle">
+      <div class="modal-header">
+        <div class="modal-title" id="copyModalTitle">他の曜日にコピー</div>
+        <button class="close-btn" id="closeCopyModal" aria-label="閉じる">&times;</button>
+      </div>
+      <p style="font-size:0.84rem;color:var(--text-secondary);margin:0 0 8px;line-height:1.5;">
+        <strong id="copySourceLabel" style="color:var(--text-primary)">Wed</strong> のスケジュールをコピーする先の曜日を選択してください（複数選択可・既存予定は上書きされます）。
+      </p>
+      <div class="copy-days-grid" id="copyDaysGrid"></div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button type="button" class="step-btn" id="selectWeekdaysBtn" style="padding:8px;">平日すべて</button>
+        <button type="button" class="step-btn" id="selectAllDaysBtn" style="padding:8px;">他すべて</button>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-primary" id="executeCopyBtn">選択した曜日に複製する</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (() => {
+      // Service Worker 登録（PWA用）
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch(() => {});
+        });
+      }
+
+      const DAYS = [
+        { key: 'mon', short: 'Mon', jp: '月曜日' },
+        { key: 'tue', short: 'Tue', jp: '火曜日' },
+        { key: 'wed', short: 'Wed', jp: '水曜日' },
+        { key: 'thu', short: 'Thu', jp: '木曜日' },
+        { key: 'fri', short: 'Fri', jp: '金曜日' },
+        { key: 'sat', short: 'Sat', jp: '土曜日' },
+        { key: 'sun', short: 'Sun', jp: '日曜日' }
+      ];
+
+      const PALETTE = [
+        '#818cf8', '#a78bfa', '#f472b6', '#fb7185', '#fb923c', '#facc15',
+        '#4ade80', '#34d399', '#2dd4bf', '#38bdf8', '#60a5fa', '#cbd5e1'
+      ];
+
+      const STORAGE_KEY = 'routine_24h_data_v1';
+      const HISTORY_KEY = 'routine_24h_history_v1';
+
+      const DEFAULT_WED_DATA = [
+        { id: 'w1', title: 'Sleep', start: '23:00', end: '07:30', color: '#818cf8' },
+        { id: 'w2', title: 'Morning', start: '07:30', end: '08:30', color: '#facc15' },
+        { id: 'w3', title: 'School', start: '08:30', end: '15:15', color: '#38bdf8' },
+        { id: 'w4', title: 'Climbing', start: '15:15', end: '18:00', color: '#4ade80' },
+        { id: 'w5', title: 'Way home', start: '18:00', end: '19:00', color: '#2dd4bf' },
+        { id: 'w6', title: 'Dinner', start: '19:00', end: '20:00', color: '#fb923c' },
+        { id: 'w7', title: 'Study', start: '20:00', end: '21:00', color: '#f472b6' },
+        { id: 'w8', title: 'Prep for sleep', start: '21:00', end: '23:00', color: '#a78bfa' }
+      ];
+
+      function getTodayKey() {
+        const map = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+        return map[new Date().getDay()];
+      }
+
+      function loadSchedules() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        const initial = { mon: [], tue: [], wed: DEFAULT_WED_DATA, thu: [], fri: [], sat: [], sun: [] };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+        return initial;
+      }
+
+      function loadHistory() {
+        try {
+          const raw = localStorage.getItem(HISTORY_KEY);
+          if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        const initialHistory = DEFAULT_WED_DATA.map(d => ({
+          title: d.title,
+          color: d.color,
+          duration: calcDurationMinutes(d.start, d.end)
+        }));
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(initialHistory));
+        return initialHistory;
+      }
+
+      let schedules = loadSchedules();
+      let historyChips = loadHistory();
+      let activeDay = getTodayKey();
+      let editingId = null;
+      let selectedColor = PALETTE[9];
+      let copyTargets = new Set();
+
+      const dayTabsEl = document.getElementById('dayTabs');
+      const clockSvg = document.getElementById('clockSvg');
+      const scheduleListEl = document.getElementById('scheduleList');
+      const summaryTextEl = document.getElementById('summaryText');
+      const chartDayInfoEl = document.getElementById('chartDayInfo');
+      const liveClockBadgeEl = document.getElementById('liveClockBadge');
+      const listTitleEl = document.getElementById('listTitle');
+      const toastEl = document.getElementById('toast');
+
+      const editModal = document.getElementById('editModal');
+      const editModalTitle = document.getElementById('editModalTitle');
+      const eventTitleInput = document.getElementById('eventTitleInput');
+      const startTimeInput = document.getElementById('startTimeInput');
+      const endTimeInput = document.getElementById('endTimeInput');
+      const durationPreview = document.getElementById('durationPreview');
+      const colorPaletteEl = document.getElementById('colorPalette');
+      const historyChipsEl = document.getElementById('historyChips');
+      const deleteEventBtn = document.getElementById('deleteEventBtn');
+      const saveEventBtn = document.getElementById('saveEventBtn');
+
+      const copyModal = document.getElementById('copyModal');
+      const copySourceLabel = document.getElementById('copySourceLabel');
+      const copyDaysGrid = document.getElementById('copyDaysGrid');
+
+      function toMinutes(hhmm) {
+        const [h, m] = hhmm.split(':').map(Number);
+        return h * 60 + m;
+      }
+
+      function toHHMM(mins) {
+        const m = ((mins % 1440) + 1440) % 1440;
+        return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+      }
+
+      function formatDisplayTime(hhmm) {
+        const [h, m] = hhmm.split(':').map(Number);
+        return `${h}:${String(m).padStart(2, '0')}`;
+      }
+
+      function calcDurationMinutes(start, end) {
+        const s = toMinutes(start);
+        const e = toMinutes(end);
+        if (e > s) return e - s;
+        if (e < s) return (1440 - s) + e;
+        return 0;
+      }
+
+      function formatDuration(mins) {
+        return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`;
+      }
+
+      function isNowInRange(start, end, nowMins) {
+        const s = toMinutes(start);
+        const e = toMinutes(end);
+        if (e > s) return nowMins >= s && nowMins < e;
+        if (e < s) return nowMins >= s || nowMins < e;
+        return false;
+      }
+
+      function saveAll() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(schedules));
+      }
+
+      function saveHistoryItem(title, color, duration) {
+        const cleanTitle = title.trim();
+        if (!cleanTitle) return;
+        historyChips = historyChips.filter(item => item.title.toLowerCase() !== cleanTitle.toLowerCase());
+        historyChips.unshift({ title: cleanTitle, color, duration });
+        historyChips = historyChips.slice(0, 12);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(historyChips));
+      }
+
+      function showToast(msg) {
+        toastEl.textContent = msg;
+        toastEl.classList.add('show');
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => toastEl.classList.remove('show'), 2200);
+      }
+
+      function renderTabs() {
+        const todayKey = getTodayKey();
+        dayTabsEl.innerHTML = '';
+        DAYS.forEach(d => {
+          const btn = document.createElement('button');
+          btn.className = `day-tab ${d.key === activeDay ? 'active' : ''} ${d.key === todayKey ? 'is-today' : ''}`;
+          btn.innerHTML = `<span>${d.short}</span><span class="today-pip"></span>`;
+          btn.addEventListener('click', () => {
+            activeDay = d.key;
+            renderAll();
+          });
+          dayTabsEl.appendChild(btn);
+        });
+      }
+
+      function polarToCartesian(cx, cy, r, angleDeg) {
+        const rad = (angleDeg * Math.PI) / 180;
+        return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+      }
+
+      function createDonutSectorPath(cx, cy, innerR, outerR, startMin, durMin) {
+        if (durMin >= 1439.9) {
+          return [
+            `M ${cx} ${cy - outerR}`,
+            `A ${outerR} ${outerR} 0 1 1 ${cx - 0.01} ${cy - outerR}`,
+            `L ${cx - 0.01} ${cy - innerR}`,
+            `A ${innerR} ${innerR} 0 1 0 ${cx} ${cy - innerR}`,
+            'Z'
+          ].join(' ');
+        }
+        const startAngle = (startMin / 1440) * 360 - 90;
+        const sweepAngle = (durMin / 1440) * 360;
+        const endAngle = startAngle + sweepAngle;
+
+        const p1 = polarToCartesian(cx, cy, outerR, startAngle);
+        const p2 = polarToCartesian(cx, cy, outerR, endAngle);
+        const p3 = polarToCartesian(cx, cy, innerR, endAngle);
+        const p4 = polarToCartesian(cx, cy, innerR, startAngle);
+        const largeArc = sweepAngle > 180 ? 1 : 0;
+
+        return [
+          `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)}`,
+          `A ${outerR} ${outerR} 0 ${largeArc} 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`,
+          `L ${p3.x.toFixed(2)} ${p3.y.toFixed(2)}`,
+          `A ${innerR} ${innerR} 0 ${largeArc} 0 ${p4.x.toFixed(2)} ${p4.y.toFixed(2)}`,
+          'Z'
+        ].join(' ');
+      }
+
+      function svgEl(tag, attrs = {}) {
+        const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+        for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+        return el;
+      }
+
+      function renderClock() {
+        const cx = 210, cy = 210;
+        const innerR = 58, outerR = 166;
+        const tickInner = 171, tickOuterMajor = 180, tickOuterMinor = 176;
+        const labelR = 193;
+
+        clockSvg.innerHTML = '';
+
+        const defs = svgEl('defs');
+        const filter = svgEl('filter', { id: 'nowGlow', x: '-40%', y: '-40%', width: '180%', height: '180%' });
+        const blur = svgEl('feGaussianBlur', { stdDeviation: '2.5', result: 'coloredBlur' });
+        const merge = svgEl('feMerge');
+        merge.appendChild(svgEl('feMergeNode', { in: 'coloredBlur' }));
+        merge.appendChild(svgEl('feMergeNode', { in: 'SourceGraphic' }));
+        filter.appendChild(blur);
+        filter.appendChild(merge);
+        defs.appendChild(filter);
+        clockSvg.appendChild(defs);
+
+        clockSvg.appendChild(svgEl('circle', {
+          cx, cy, r: (innerR + outerR) / 2,
+          fill: 'none', stroke: 'rgba(148, 163, 184, 0.08)', 'stroke-width': outerR - innerR
+        }));
+
+        clockSvg.appendChild(svgEl('circle', {
+          cx, cy, r: outerR, fill: 'none', stroke: 'rgba(148, 163, 184, 0.16)', 'stroke-width': 1
+        }));
+        clockSvg.appendChild(svgEl('circle', {
+          cx, cy, r: innerR, fill: '#0d1427', stroke: 'rgba(148, 163, 184, 0.2)', 'stroke-width': 1.2
+        }));
+
+        const emptyHitRing = svgEl('circle', {
+          cx, cy, r: (innerR + outerR) / 2,
+          fill: 'none', stroke: 'transparent', 'stroke-width': outerR - innerR, style: 'cursor: crosshair;'
+        });
+        emptyHitRing.addEventListener('click', (e) => {
+          const rect = clockSvg.getBoundingClientRect();
+          const px = ((e.clientX - rect.left) / rect.width) * 420;
+          const py = ((e.clientY - rect.top) / rect.height) * 420;
+          let deg = (Math.atan2(py - cy, px - cx) * 180) / Math.PI + 90;
+          if (deg < 0) deg += 360;
+          const clickedMins = Math.round(((deg / 360) * 1440) / 15) * 15;
+          openAddModal(toHHMM(clickedMins), toHHMM(clickedMins + 60));
+        });
+        clockSvg.appendChild(emptyHitRing);
+
+        for (let h = 0; h < 24; h++) {
+          const angle = (h / 24) * 360 - 90;
+          const isMajor = h % 6 === 0;
+          const isSemi = h % 3 === 0;
+          const p1 = polarToCartesian(cx, cy, tickInner, angle);
+          const p2 = polarToCartesian(cx, cy, isMajor ? tickOuterMajor : tickOuterMinor, angle);
+
+          clockSvg.appendChild(svgEl('line', {
+            x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y,
+            stroke: isMajor ? 'rgba(241, 245, 249, 0.7)' : isSemi ? 'rgba(148, 163, 184, 0.45)' : 'rgba(148, 163, 184, 0.2)',
+            'stroke-width': isMajor ? 2 : 1, 'stroke-linecap': 'round'
+          }));
+
+          if (h % 3 === 0) {
+            const lp = polarToCartesian(cx, cy, labelR, angle);
+            const txt = svgEl('text', { x: lp.x, y: lp.y, class: `hour-label ${isMajor ? 'major' : ''}` });
+            txt.textContent = String(h);
+            clockSvg.appendChild(txt);
+          }
+        }
+
+        const dayEvents = getSortedEvents(activeDay);
+        const now = new Date();
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+        const isViewingToday = activeDay === getTodayKey();
+
+        dayEvents.forEach(ev => {
+          const startMin = toMinutes(ev.start);
+          const durMin = calcDurationMinutes(ev.start, ev.end);
+          if (durMin <= 0) return;
+
+          const g = svgEl('g', { class: 'sector-group' });
+          const pathD = createDonutSectorPath(cx, cy, innerR + 1.5, outerR - 1.5, startMin, durMin);
+          const isCurrent = isViewingToday && isNowInRange(ev.start, ev.end, nowMins);
+
+          g.appendChild(svgEl('path', {
+            d: pathD,
+            fill: ev.color,
+            'fill-opacity': isCurrent ? '0.96' : '0.86',
+            stroke: isCurrent ? '#ffffff' : '#0b1020',
+            'stroke-width': isCurrent ? '2.2' : '1.8',
+            'stroke-linejoin': 'round'
+          }));
+
+          const sweepDeg = (durMin / 1440) * 360;
+          const midAngle = (startMin / 1440) * 360 - 90 + sweepDeg / 2;
+          const midR = (innerR + outerR) / 2 + 2;
+          const labelPos = polarToCartesian(cx, cy, midR, midAngle);
+          const durStr = formatDuration(durMin);
+
+          if (sweepDeg >= 30) {
+            const fontSize = sweepDeg >= 55 ? 11.5 : 10;
+            const maxChars = sweepDeg >= 55 ? 13 : 9;
+            const titleText = ev.title.length > maxChars ? ev.title.slice(0, maxChars - 1) + '…' : ev.title;
+
+            const t1 = svgEl('text', {
+              x: labelPos.x, y: labelPos.y - 4.5, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+              'font-size': fontSize, class: 'sector-label-title'
+            });
+            t1.textContent = titleText;
+
+            const t2 = svgEl('text', {
+              x: labelPos.x, y: labelPos.y + 8, 'text-anchor': 'middle', 'dominant-baseline': 'central',
+              'font-size': fontSize - 1.5, class: 'sector-label-dur'
+            });
+            t2.textContent = durStr;
+            g.appendChild(t1);
+            g.appendChild(t2);
+          } else if (sweepDeg >= 12) {
+            let rot = midAngle;
+            const norm = ((rot % 360) + 360) % 360;
+            if (norm > 90 && norm < 270) rot += 180;
+
+            const labelGroup = svgEl('g', {
+              transform: `translate(${labelPos.x.toFixed(2)}, ${labelPos.y.toFixed(2)}) rotate(${rot.toFixed(2)})`
+            });
+            const titleText = ev.title.length > 11 ? ev.title.slice(0, 10) + '…' : ev.title;
+
+            if (sweepDeg >= 17) {
+              const t1 = svgEl('text', { x: 0, y: -4.2, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 9.2, class: 'sector-label-title' });
+              t1.textContent = titleText;
+              const t2 = svgEl('text', { x: 0, y: 6.2, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 8.2, class: 'sector-label-dur' });
+              t2.textContent = durStr;
+              labelGroup.appendChild(t1);
+              labelGroup.appendChild(t2);
+            } else {
+              const t1 = svgEl('text', { x: 0, y: 0, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 8.5, class: 'sector-label-title' });
+              t1.textContent = `${ev.title.slice(0, 7)} ${durStr}`;
+              labelGroup.appendChild(t1);
+            }
+            g.appendChild(labelGroup);
+          } else if (sweepDeg >= 6) {
+            let rot = midAngle;
+            const norm = ((rot % 360) + 360) % 360;
+            if (norm > 90 && norm < 270) rot += 180;
+            const t1 = svgEl('text', {
+              transform: `translate(${labelPos.x.toFixed(2)}, ${labelPos.y.toFixed(2)}) rotate(${rot.toFixed(2)})`,
+              'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 7.5, class: 'sector-label-title'
+            });
+            t1.textContent = ev.title.slice(0, 8);
+            g.appendChild(t1);
+          }
+
+          g.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openEditModal(ev.id);
+          });
+          clockSvg.appendChild(g);
+        });
+
+        const dayObj = DAYS.find(d => d.key === activeDay);
+        const totalMins = dayEvents.reduce((acc, ev) => acc + calcDurationMinutes(ev.start, ev.end), 0);
+
+        const cDay = svgEl('text', { x: cx, y: cy - 8, class: 'center-day' });
+        cDay.textContent = dayObj.short.toUpperCase();
+        clockSvg.appendChild(cDay);
+
+        const cTime = svgEl('text', { x: cx, y: cy + 10, id: 'centerLiveTime', class: 'center-time' });
+        cTime.textContent = formatClockTime(now);
+        clockSvg.appendChild(cTime);
+
+        const cSub = svgEl('text', { x: cx, y: cy + 25, class: 'center-sub' });
+        cSub.textContent = `${dayEvents.length}件 · ${formatDuration(totalMins)}`;
+        clockSvg.appendChild(cSub);
+
+        clockSvg.appendChild(svgEl('g', { id: 'nowNeedleGroup', style: 'pointer-events:none;' }));
+        updateLiveNeedle();
+      }
+
+      function formatClockTime(date) {
+        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+      }
+
+      function updateLiveNeedle() {
+        const now = new Date();
+        const timeStr = formatClockTime(now);
+        liveClockBadgeEl.textContent = timeStr;
+
+        const centerTimeEl = document.getElementById('centerLiveTime');
+        if (centerTimeEl) centerTimeEl.textContent = timeStr;
+
+        const needleGroup = document.getElementById('nowNeedleGroup');
+        if (!needleGroup) return;
+
+        const cx = 210, cy = 210, innerR = 58, outerR = 172;
+        const nowMinsExact = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+        const angle = (nowMinsExact / 1440) * 360 - 90;
+        const isToday = activeDay === getTodayKey();
+
+        const pStart = polarToCartesian(cx, cy, innerR - 4, angle);
+        const pEnd = polarToCartesian(cx, cy, outerR, angle);
+        const pTip = polarToCartesian(cx, cy, outerR - 6, angle);
+
+        needleGroup.innerHTML = '';
+        needleGroup.appendChild(svgEl('line', {
+          x1: pStart.x, y1: pStart.y, x2: pEnd.x, y2: pEnd.y,
+          stroke: isToday ? '#f43f5e' : 'rgba(244, 63, 94, 0.42)',
+          'stroke-width': isToday ? 2.4 : 1.4,
+          'stroke-dasharray': isToday ? 'none' : '4 3',
+          'stroke-linecap': 'round',
+          filter: isToday ? 'url(#nowGlow)' : 'none'
+        }));
+        needleGroup.appendChild(svgEl('circle', {
+          cx: pTip.x, cy: pTip.y, r: isToday ? 4.5 : 3,
+          fill: isToday ? '#fff1f2' : 'rgba(255, 241, 242, 0.6)',
+          stroke: '#f43f5e', 'stroke-width': 2
+        }));
+      }
+
+      function getSortedEvents(dayKey) {
+        return [...(schedules[dayKey] || [])].sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
+      }
+
+      function renderList() {
+        const dayEvents = getSortedEvents(activeDay);
+        const dayObj = DAYS.find(d => d.key === activeDay);
+        const isToday = activeDay === getTodayKey();
+        const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
+
+        const totalMins = dayEvents.reduce((acc, ev) => acc + calcDurationMinutes(ev.start, ev.end), 0);
+        summaryTextEl.textContent = `${dayObj.jp}${isToday ? '（今日）' : ''} · 合計 ${formatDuration(totalMins)}`;
+        chartDayInfoEl.textContent = `${dayObj.short} — ${dayObj.jp}${isToday ? ' (Today)' : ''}`;
+        listTitleEl.textContent = `${dayObj.short} Schedule (${dayEvents.length})`;
+
+        scheduleListEl.innerHTML = '';
+        if (dayEvents.length === 0) {
+          scheduleListEl.innerHTML = `
+            <div class="empty-state">
+              この曜日の予定はまだありません。<br />
+              右下の「＋ 予定を追加」または時計盤をタップして登録できます。
+            </div>
+          `;
+          return;
+        }
+
+        dayEvents.forEach(ev => {
+          const dur = calcDurationMinutes(ev.start, ev.end);
+          const isNow = isToday && isNowInRange(ev.start, ev.end, nowMins);
+
+          const item = document.createElement('div');
+          item.className = `schedule-item ${isNow ? 'is-now' : ''}`;
+          item.innerHTML = `
+            <div class="item-color-bar" style="background:${ev.color};box-shadow:0 0 10px ${ev.color}55;"></div>
+            <div class="item-main">
+              <div class="item-title-row">
+                <span class="item-title"></span>
+                ${isNow ? '<span class="now-tag">NOW</span>' : ''}
+              </div>
+              <div class="item-time">${formatDisplayTime(ev.start)} – ${formatDisplayTime(ev.end)}</div>
+            </div>
+            <div class="item-dur">${formatDuration(dur)}</div>
+          `;
+          item.querySelector('.item-title').textContent = ev.title;
+          item.addEventListener('click', () => openEditModal(ev.id));
+          scheduleListEl.appendChild(item);
+        });
+      }
+
+      function renderAll() {
+        renderTabs();
+        renderClock();
+        renderList();
+      }
+
+      function renderPalette() {
+        colorPaletteEl.innerHTML = '';
+        PALETTE.forEach(c => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `color-swatch ${c === selectedColor ? 'selected' : ''}`;
+          btn.style.background = c;
+          btn.addEventListener('click', () => {
+            selectedColor = c;
+            renderPalette();
+          });
+          colorPaletteEl.appendChild(btn);
+        });
+      }
+
+      function renderHistoryChips() {
+        const section = document.getElementById('historySection');
+        if (!historyChips.length) {
+          section.style.display = 'none';
+          return;
+        }
+        section.style.display = 'block';
+        historyChipsEl.innerHTML = '';
+        historyChips.forEach(chip => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'history-chip';
+          btn.innerHTML = `<span class="chip-dot" style="background:${chip.color}"></span><span></span>`;
+          btn.querySelector('span:last-child').textContent = chip.title;
+          btn.addEventListener('click', () => {
+            eventTitleInput.value = chip.title;
+            selectedColor = chip.color;
+            renderPalette();
+            if (chip.duration && startTimeInput.value) {
+              endTimeInput.value = toHHMM(toMinutes(startTimeInput.value) + chip.duration);
+              updateDurationPreview();
+            }
+          });
+          historyChipsEl.appendChild(btn);
+        });
+      }
+
+      function updateDurationPreview() {
+        const s = startTimeInput.value, e = endTimeInput.value;
+        if (!s || !e) {
+          durationPreview.textContent = '時間を入力';
+          return;
+        }
+        const dur = calcDurationMinutes(s, e);
+        if (dur === 0) {
+          durationPreview.textContent = '開始と終了が同じです';
+          durationPreview.style.color = 'var(--danger)';
+        } else {
+          const cross = toMinutes(e) < toMinutes(s) ? ' (日跨ぎ)' : '';
+          durationPreview.textContent = `所要時間 ${formatDuration(dur)}${cross}`;
+          durationPreview.style.color = 'var(--accent)';
+        }
+      }
+
+      function openAddModal(defaultStart, defaultEnd) {
+        editingId = null;
+        editModalTitle.textContent = '予定を追加';
+        deleteEventBtn.style.display = 'none';
+        eventTitleInput.value = '';
+
+        const sorted = getSortedEvents(activeDay);
+        let initStart = defaultStart || '09:00';
+        let initEnd = defaultEnd || '10:00';
+        if (!defaultStart && sorted.length > 0) {
+          const last = sorted[sorted.length - 1];
+          initStart = last.end;
+          initEnd = toHHMM(toMinutes(last.end) + 60);
+        }
+
+        startTimeInput.value = initStart;
+        endTimeInput.value = initEnd;
+        selectedColor = PALETTE[Math.floor(Math.random() * 10)];
+
+        renderHistoryChips();
+        renderPalette();
+        updateDurationPreview();
+        editModal.classList.add('open');
+        setTimeout(() => eventTitleInput.focus(), 120);
+      }
+
+      function openEditModal(id) {
+        const ev = (schedules[activeDay] || []).find(item => item.id === id);
+        if (!ev) return;
+        editingId = id;
+        editModalTitle.textContent = '予定を編集';
+        deleteEventBtn.style.display = 'block';
+        eventTitleInput.value = ev.title;
+        startTimeInput.value = ev.start;
+        endTimeInput.value = ev.end;
+        selectedColor = ev.color;
+
+        renderHistoryChips();
+        renderPalette();
+        updateDurationPreview();
+        editModal.classList.add('open');
+      }
+
+      function closeEditModal() {
+        editModal.classList.remove('open');
+      }
+
+      document.querySelectorAll('.step-btn[data-target]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = btn.dataset.target === 'start' ? startTimeInput : endTimeInput;
+          const delta = Number(btn.dataset.delta);
+          target.value = toHHMM((target.value ? toMinutes(target.value) : 0) + delta);
+          updateDurationPreview();
+        });
+      });
+
+      startTimeInput.addEventListener('input', updateDurationPreview);
+      endTimeInput.addEventListener('input', updateDurationPreview);
+
+      saveEventBtn.addEventListener('click', () => {
+        const title = eventTitleInput.value.trim();
+        const start = startTimeInput.value;
+        const end = endTimeInput.value;
+
+        if (!title) { showToast('予定名を入力してください'); eventTitleInput.focus(); return; }
+        if (!start || !end) { showToast('開始・終了時間を設定してください'); return; }
+        const dur = calcDurationMinutes(start, end);
+        if (dur <= 0) { showToast('開始と終了時間は異なる時刻にしてください'); return; }
+
+        if (!schedules[activeDay]) schedules[activeDay] = [];
+        if (editingId) {
+          schedules[activeDay] = schedules[activeDay].map(ev =>
+            ev.id === editingId ? { ...ev, title, start, end, color: selectedColor } : ev
+          );
+          showToast('予定を更新しました');
+        } else {
+          schedules[activeDay].push({
+            id: 'ev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            title, start, end, color: selectedColor
+          });
+          showToast('予定を追加しました');
+        }
+
+        saveHistoryItem(title, selectedColor, dur);
+        saveAll();
+        closeEditModal();
+        renderAll();
+      });
+
+      deleteEventBtn.addEventListener('click', () => {
+        if (!editingId) return;
+        schedules[activeDay] = (schedules[activeDay] || []).filter(ev => ev.id !== editingId);
+        saveAll();
+        closeEditModal();
+        renderAll();
+        showToast('予定を削除しました');
+      });
+
+      function openCopyModal() {
+        copyTargets.clear();
+        const srcDay = DAYS.find(d => d.key === activeDay);
+        copySourceLabel.textContent = `${srcDay.short}（${srcDay.jp}）`;
+        renderCopyDaysGrid();
+        copyModal.classList.add('open');
+      }
+
+      function renderCopyDaysGrid() {
+        copyDaysGrid.innerHTML = '';
+        DAYS.forEach(d => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `copy-day-btn ${copyTargets.has(d.key) ? 'selected' : ''}`;
+          btn.textContent = d.short;
+          btn.disabled = d.key === activeDay;
+          btn.addEventListener('click', () => {
+            if (copyTargets.has(d.key)) copyTargets.delete(d.key);
+            else copyTargets.add(d.key);
+            renderCopyDaysGrid();
+          });
+          copyDaysGrid.appendChild(btn);
+        });
+      }
+
+      document.getElementById('selectWeekdaysBtn').addEventListener('click', () => {
+        ['mon', 'tue', 'wed', 'thu', 'fri'].forEach(k => { if (k !== activeDay) copyTargets.add(k); });
+        renderCopyDaysGrid();
+      });
+
+      document.getElementById('selectAllDaysBtn').addEventListener('click', () => {
+        DAYS.forEach(d => { if (d.key !== activeDay) copyTargets.add(d.key); });
+        renderCopyDaysGrid();
+      });
+
+      document.getElementById('executeCopyBtn').addEventListener('click', () => {
+        if (copyTargets.size === 0) { showToast('コピー先の曜日を選択してください'); return; }
+        const sourceEvents = schedules[activeDay] || [];
+        copyTargets.forEach(targetKey => {
+          schedules[targetKey] = sourceEvents.map((ev, idx) => ({
+            ...ev,
+            id: `ev_${Date.now()}_${targetKey}_${idx}_${Math.random().toString(36).slice(2, 5)}`
+          }));
+        });
+        saveAll();
+        copyModal.classList.remove('open');
+        showToast(`${copyTargets.size}つの曜日にコピーしました`);
+      });
+
+      document.getElementById('addBtn').addEventListener('click', () => openAddModal());
+      document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
+      document.getElementById('openCopyBtn').addEventListener('click', openCopyModal);
+      document.getElementById('closeCopyModal').addEventListener('click', () => copyModal.classList.remove('open'));
+
+      [editModal, copyModal].forEach(backdrop => {
+        backdrop.addEventListener('click', (e) => {
+          if (e.target === backdrop) backdrop.classList.remove('open');
+        });
+      });
+
+      renderAll();
+      setInterval(updateLiveNeedle, 1000);
+    })();
+  </script>
+</body>
+</html>
